@@ -1,66 +1,54 @@
 services:
   dev-pc:
-    image: 127.0.0.1:5000/debian-podman-ssh:12.1
+    image: 127.0.0.1:5000/docker:24.0.6-dind-ssh-alpine3.18
     privileged: true
     ports:
       - 2224:22/tcp
+      - 8182:8080/tcp
+      - 127.0.0.1:15002:5000/tcp
+    expose:
+      - 5000
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./home/dev:/home/debian:z
-      - ./init:/app/init:z,ro
-    depends_on:
-      - oracle-pc
+      - ./home/dev:/home/alpine:z
     networks:
-      fake-cloud-net:
-      deployment-net:
+      devops-net:
 
   uat-pc:
-    image: 127.0.0.1:5000/debian-podman-ssh:12.1
+    image: 127.0.0.1:5000/docker:24.0.6-dind-ssh-alpine3.18
     privileged: true
     ports:
       - 2223:22/tcp
+      - 8181:8080/tcp
+      - 127.0.0.1:15001:5000/tcp
+    expose:
+      - 5000
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./home/uat:/home/debian:z
-      - ./init:/app/init:z,ro
-    depends_on:
-      - oracle-pc
+      - ./home/uat:/home/alpine:z
     networks:
-      fake-cloud-net:
-      deployment-net:
+      devops-net:
 
   master-pc:
-    image: 127.0.0.1:5000/debian-podman-ssh:12.1
+    image: 127.0.0.1:5000/docker:24.0.6-dind-ssh-alpine3.18
     privileged: true
     ports:
       - 2222:22/tcp
+      - 8180:8080/tcp
+      - 127.0.0.1:15000:5000/tcp
+    expose:
+      - 5000
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./home/master:/home/debian:z
-      - ./init:/app/init:z,ro
-    depends_on:
-      - oracle-pc
+      - ./home/master:/home/alpine:z
     networks:
-      fake-cloud-net:
-      deployment-net:
-
-  oracle-pc:
-    image: container-registry.oracle.com/database/express:21.3.0-xe
-    ports:
-      - 2521:1521
-    restart: unless-stopped
-    environment:
-      ORACLE_PWD: "12345"
-    volumes:
-      - oracle-pc-data:/opt/oracle/oradata:z,rw
-    networks:
-      fake-cloud-net:
+      devops-net:
 
   sonarqube-server:
     image: docker.io/sonarqube:10.1.0-community
@@ -85,33 +73,90 @@ services:
     networks:
       devops-net:
 
+  access-nginx:
+    image: nginx
+    ports:
+      - "8080:8080/tcp"
+      - "8081:8081/tcp"
+      - "8083:8083/tcp"
+    volumes:
+      - ./default.conf:/etc/nginx/templates/default.conf.template:z,ro
+    networks:
+      devops-net:
+    depends_on:
+      - jenkins
+      - grafana
+      - prometheus
+
   jenkins:
-    image: 127.0.0.1:5000/jenkins-docker:2.401.3-lts-jdk17
+    image: 127.0.0.1:5000/jenkins-docker:2.414.3-lts-jdk17
     build:
       context: .
       dockerfile: Dockerfile.jenkins
     privileged: true
     ports:
-      - 8080:8080
+      - 127.0.0.1:8085:8080
     volumes:
       - jenkins-data:/var/jenkins_home
     networks:
       devops-net:
-      deployment-net:
 
   local-registry:
     image: docker.io/registry:2
     expose:
       - 5000
+    ports:
+      - 127.0.0.1:5000:5000
     networks:
-      deployment-net:
+      devops-net:
+
+  prometheus:
+    image: docker.io/prom/prometheus:v2.47.0
+    expose:
+      - 9090
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:z,ro
+    networks:
+      devops-net:
+    depends_on:
+      - dev-pc
+      - uat-pc
+      - master-pc
+      - jenkins
+
+  grafana:
+    image: docker.io/grafana/grafana-oss:10.1.4
+    expose:
+      - 3000
+    volumes:
+      - ./volumes.local/grafana_data:/var/lib/grafana:z,rw
+    networks:
+      devops-net:
+
+  netdata:
+    image: docker.io/netdata/netdata
+    pid: host
+    network_mode: host
+    restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - ./netdataconfig:/etc/netdata:z,rw
+      - netdatalib:/var/lib/netdata:z,rw
+      - netdatacache:/var/cache/netdata:z,rw
+      - /sys:/host/sys:ro
 
 volumes:
-  oracle-pc-data:
   sonarqube-db-data:
   jenkins-data:
+  drone-data:
+  netdatalib:
+  netdatacache:
 
 networks:
-  deployment-net:
   devops-net:
-  fake-cloud-net:

@@ -2,3 +2,5 @@ home/
 .vscode/
 nginx/
 .env
+*.local
+netdataconfig/

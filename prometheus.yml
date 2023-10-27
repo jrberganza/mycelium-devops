@@ -1,0 +1,22 @@
+scrape_configs:
+  - job_name: jenkins
+    scrape_interval: 5s
+    metrics_path: "/prometheus/"
+    static_configs:
+      - targets:
+          - jenkins:8080
+  - job_name: dev-pc
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - dev-pc:5000
+  - job_name: uat-pc
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - uat-pc:5000
+  - job_name: master-pc
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - master-pc:5000

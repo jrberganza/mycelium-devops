@@ -1,0 +1,284 @@
+@startuml general
+frame "Dev PC" as dpc {
+    frame "Docker" as d1 {
+        component "Reverse Proxy" as rp1
+        component "Frontend Server" as fe1
+        component "APIs" as api1
+        component "Database" as db1
+    }
+    component "CAdvisor" as cad1
+
+    portin a1
+    portin m1
+
+    rp1 -(0- api1 : Endpoints
+    rp1 -(0- fe1 : Pages
+    api1 -(0- db1 : SQL Commands
+    rp1 - a1
+    cad1 - m1
+}
+
+interface "Web Portal" as ea1
+interface "Metrics" as em1
+
+ea1 -- a1
+em1 -- m1
+
+frame "UAT PC" as upc {
+    frame "Docker" as d2 {
+        component "Reverse Proxy" as rp2
+        component "Frontend Server" as fe2
+        component "APIs" as api2
+        component "Database" as db2
+    }
+    component "CAdvisor" as cad2
+
+    portin a2
+    portin m2
+
+    rp2 -(0- api2 : Endpoints
+    rp2 -(0- fe2 : Pages
+    api2 -(0- db2 : SQL Commands
+    rp2 - a2
+    cad2 - m2
+}
+
+interface "Web Portal" as ea2
+interface "Metrics" as em2
+
+ea2 -- a2
+em2 -- m2
+
+frame "Master PC" as mpc {
+    frame "Docker" as d3 {
+        component "Reverse Proxy" as rp3
+        component "Frontend Server" as fe3
+        component "APIs" as api3
+        component "Database" as db3
+    }
+    component "CAdvisor" as cad3
+
+    portin a3
+    portin m3
+
+    rp3 -(0- api3 : Endpoints
+    rp3 -(0- fe3 : Pages
+    api3 -(0- db3 : SQL Commands
+    rp3 - a3
+    cad3 - m3
+}
+
+interface "Web Portal" as ea3
+interface "Metrics" as em3
+
+ea3 -- a3
+em3 -- m3
+
+frame "DevOps and Monitoring Environment" as do {
+    frame "CI/CD" as cicd {
+        component "Jenkins/Drone" as pl
+        component "Sonarqube" as sq
+        component "Image Registry" as reg
+
+        pl -(0- sq : Analysis
+        pl -(0- reg : Push
+    }
+
+    frame "Monitoring" as mon {
+        component "Prometheus" as prom
+        component "Grafana" as graf
+        component "Netdata" as nd
+    }
+
+    pl --0)- prom : Metrics
+    pl --0)- nd : Metrics
+    prom -0)- graf : Metrics
+
+    portout g
+
+    graf - g
+
+    prom --( em1
+    prom --( em2
+    prom --( em3
+
+    nd --( em1
+    nd --( em2
+    nd --( em3
+}
+
+interface "Dashboard" as eg
+
+eg -- g
+
+interface "Pull" as regp
+
+reg -- regp
+
+regp )-- dpc
+regp )- upc
+regp )-- mpc
+
+@enduml
+
+@startuml pipeline
+:SCM;
+if (Unit testing) then (Passed)
+    :SonarQube API Analysis;
+    if (Quality Gate API) then (Passed)
+        :SonarQube Client Analysis;
+        if (Quality Gate Client) then (Passed)
+            :Build APIs;
+            :Build Frontend;
+            :Publish images;
+            if (Deployment) then (Exitoso)
+                stop
+            else (Error)
+                :Mail on failure;
+                stop
+            endif
+        else (Failed)
+            :Mail on failure;
+            stop
+        endif
+    else (Failed)
+        :Mail on failure;
+        stop
+    endif
+else (Failed)
+    :Mail on failure;
+    stop
+endif
+@enduml
+
+@startuml it1
+package "Microservices" as sv {
+    component "Gateway" as gw
+    component "Servicio de Usuarios" as user
+    component "Servicio de Productos" as prod
+    component "Servicio de Carrito" as carr
+    component "Servicio de Portal Web" as pw
+
+    gw -(0- user : Endpoints
+    gw -(0- prod : Endpoints
+    gw -(0- carr : Endpoints
+    gw -(0- pw : Endpoints
+}
+component "Database" as db
+interface "Web Portal" as wp
+
+sv -(0- db : SQL Commands
+wp -- gw
+
+@enduml
+
+@startuml it2
+
+class ProductController {
+    create()
+    list()
+    get()
+}
+
+class OrderController {
+    create()
+    get()
+    changeState()
+    comment()
+}
+
+class UserController {
+    login()
+    register()
+}
+
+class TextController {
+    update()
+    list()
+}
+
+class Product {
+    name: String
+    price: String
+    inventory: Integer
+}
+
+class Order {
+    state: State
+    billingInfo
+    deliveryInfo
+    products: List<Product>
+    comments: Map<State, String>
+}
+
+class User {
+    email: String
+    name: String
+    role: Role
+    cart: List<Product>
+}
+
+class Text {
+    key: String
+    value: String
+}
+
+Product "*"--"*" Order
+Product "*"--"*" User
+
+ProductController -- Product
+OrderController -- Order
+UserController -- User
+TextController -- Text
+
+@enduml
+
+@startuml it3
+
+class ProductController {
+    create()
+    list()
+    get()
+}
+
+class OrderController {
+    create()
+    get()
+    changeState()
+    comment()
+}
+
+class UserController {
+    login()
+    register()
+}
+
+class Product {
+    name: String
+    price: String
+    inventory: Integer
+}
+
+class Order {
+    state: State
+    billingInfo
+    deliveryInfo
+    products: List<Product>
+    comments: Map<State, String>
+}
+
+class User {
+    email: String
+    name: String
+    role: Role
+    cart: List<Product>
+}
+
+Product "*"--"*" Order
+Product "*"--"*" User
+
+ProductController -- Product
+OrderController -- Order
+UserController -- User
+
+@enduml
